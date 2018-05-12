@@ -1,0 +1,55 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="a beginner's blog"><title>【慕课笔记】Spring Data Jpa基本使用 | Sixtar</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/8.0.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">【慕课笔记】Spring Data Jpa基本使用</h1><a id="logo" href="/.">Sixtar</a><p class="description">不忘初心! Stay hungry,Stay foolish.</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/x/"><i class="fa fa-plane"> x</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">【慕课笔记】Spring Data Jpa基本使用</h1><div class="post-meta">May 12, 2018<script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span></div><div class="post-content"><p>视频网址：<a href="http://www.imooc.com/learn/821" target="_blank" rel="noopener">http://www.imooc.com/learn/821</a></p>
+<p>附件：</p>
+<p><img src="/2018/05/12/【慕课笔记】Spring-Data-Jpa基本使用/attachment.png" alt=""></p>
+<p> <a href="./慕课网spring data  jpa课件和源码.zip">点我，我是附件</a></p>
+<p>1.基本的两种使用方式</p>
+<p>基本配置和依赖参照视频附件</p>
+<p>新建接口</p>
+<p>1）继承Repository&lt;T, ID extends Serializable&gt;然后写方法名称</p>
+<p>2）使用@RepositoryDefinition(domainClass = Employee.class, idClass = Integer.class)</p>
+<p>2.@Query的使用</p>
+<p>sql语句</p>
+<p>面向对象的语句：</p>
+<p>@Query(“select o from Employee o where o.name=?1 and o.age=?2”)</p>
+<p>List<employee> queryParams1(String name,Integer age);</employee></p>
+<p>原生的语句(nativeQuery = true)：</p>
+<p>@Query(value=”select * from employee where name like %:name%”,nativeQuery = true)</p>
+<p>List<employee> queryLike3(@Param(“name”)String name);</employee></p>
+<p>参数类型</p>
+<p>“?索引号”形式的索引参数和“”形式的命名参数</p>
+<p>3.基本的事务</p>
+<p>@Transactional加在Service层</p>
+<p>Repository层涉及到修改的方法要用@Modifying注解，否则会报不能执行DML操作的错误</p>
+<p>4.高级点的功能</p>
+<p>Repository接口的几个子类接口（层层继承）</p>
+<ul>
+<li><p>CrudRepository 基本的crud扩展</p>
+</li>
+<li><p>PagingAndSortingRepository 分页和排序</p>
+</li>
+<li><ul>
+<li>pageable实现类PageRequest和排序对象Sort和Sort.Order的使用</li>
+<li>注意分页的页数是从0开始数的</li>
+</ul>
+</li>
+<li><p>JpaRepository 层层继承以上所有，功能最全</p>
+</li>
+</ul>
+<p>JpaSpecificationExecutor</p>
+<p>灵活构建自己所需的条件</p>
+<p>public interface EmployeeJpaSpecificationExecutor </p>
+<p>extends JpaRepository&lt;Employee,Integer&gt;</p>
+<p>​                    ,JpaSpecificationExecutor<employee></employee></p>
+<p>一个简单例子</p>
+<p><img src="/2018/05/12/【慕课笔记】Spring-Data-Jpa基本使用/clipboard.png" alt="img"></p>
+</div><div class="tags"><a href="/tags/慕课/">慕课</a></div><div class="post-nav"><a class="next" href="/2018/05/01/【慕课笔记】第一个docker化的java应用/">【慕课笔记】第一个Docker化的java应用</a></div><div id="container"></div><link rel="stylesheet" type="text/css" href="//unpkg.com/gitalk/dist/gitalk.css?v=0.0.0"><script type="text/javascript" src="//unpkg.com/gitalk/dist/gitalk.min.js?v=0.0.0"></script><script>var gitalk = new Gitalk({
+  clientID: 'c1a5c3e9da362701eef8',
+  clientSecret: '9151237934be60c72d23fcd7efb5ee2798bf2b5a',
+  repo: 'comment',
+  owner: 'sixtar',
+  admin: ['sixtar'],
+  id: location.pathname,
+  distractionFreeMode: false
+})
+gitalk.render('container')
+</script></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://sixtar.org"/></form></div><div class="widget"><form class="search-form" action="//www.baidu.com/baidu" method="get" accept-charset="utf-8" target="_blank"><input type="search" name="word" maxlength="20" placeholder="Search"/><input type="hidden" name="si" value="http://sixtar.org"/><input name="tn" type="hidden" value="bds"/><input name="cl" type="hidden" value="3"/><input name="ct" type="hidden" value="2097152"/><input name="s" type="hidden" value="on"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/慕课/" style="font-size: 15px;">慕课</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2018/05/12/【慕课笔记】Spring-Data-Jpa基本使用/">【慕课笔记】Spring Data Jpa基本使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/05/01/【慕课笔记】第一个docker化的java应用/">【慕课笔记】第一个Docker化的java应用</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/27/浙大_数据结构_第二讲_线性结构_笔记/">浙大_数据结构_第二讲_线性结构_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/23/浙大_数据结构_第一讲_基本概念_笔记/">浙大_数据结构_第一讲_基本概念_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/03/25/Hexo博客搭建过程备忘/">Hexo博客搭建过程备忘</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://www.v2ex.com/" title="V2EX" target="_blank">V2EX</a><ul></ul><a href="http://www.zhihu.com/" title="全球最大的中文装B社区" target="_blank">全球最大的中文装B社区</a><ul></ul><a href="http://www.baidu.com/" title="程序员灵感的来源" target="_blank">程序员灵感的来源</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2018 <a href="/." rel="nofollow">Sixtar.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
