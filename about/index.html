@@ -33,7 +33,7 @@
   repo: 'comment',
   owner: 'sixtar',
   admin: ['sixtar'],
-  id: location.pathname,
+  id: decodeURI(location.pathname),
   distractionFreeMode: false
 })
 gitalk.render('container')
