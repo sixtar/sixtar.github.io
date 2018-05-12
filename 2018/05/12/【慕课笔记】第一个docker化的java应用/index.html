@@ -1,0 +1,60 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="a beginner's blog"><title>【慕课笔记】第一个Docker化的java应用 | Sixtar</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/8.0.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">【慕课笔记】第一个Docker化的java应用</h1><a id="logo" href="/.">Sixtar</a><p class="description">不忘初心! Stay hungry,Stay foolish.</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/x/"><i class="fa fa-plane"> x</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">【慕课笔记】第一个Docker化的java应用</h1><div class="post-meta">May 12, 2018</div><div class="post-content"><p>视频网址：<a href="http://www.imooc.com/learn/824" target="_blank" rel="noopener">http://www.imooc.com/learn/824</a></p>
+<p>常用命令(Win10下使用Powershell比较好)</p>
+<ul>
+<li><p>docker pull &lt;镜像名称&gt; :拉取镜像</p>
+</li>
+<li><ul>
+<li>可以去网易云找，<a href="https://c.163yun.com/hub#/m/home/" target="_blank" rel="noopener">https://c.163yun.com/hub#/m/home/</a>    </li>
+<li>例如： docker pull hub.c.163.com/library/nginx:latest</li>
+</ul>
+</li>
+<li><p>docker images :查看本地镜像</p>
+</li>
+<li><p>docker &lt;某某命令&gt; –help :查看这个命令的帮助</p>
+</li>
+<li><p>docker ps :查看本地已经运行的镜像</p>
+</li>
+<li><p>docker run 镜像名称</p>
+</li>
+<li><ul>
+<li><p>docker run -d &lt;镜像名称&gt; :detach（后台）方式运行，会返回一个容器ID</p>
+</li>
+<li><ul>
+<li>例如docker run -d hub.c.163.com/library/nginx</li>
+</ul>
+</li>
+<li><p>docker run -d -p &lt;主机端口&gt;:&lt;容器端口&gt;  &lt;镜像名称&gt; :运行镜像并开放端口，使本机的端口指向容器的端口(docker网络的bridge模式)</p>
+</li>
+<li><ul>
+<li>例如: docker run -d -p 8080:80 hub.c.163.com/library/nginx</li>
+</ul>
+</li>
+<li><p>docker run -d -P &lt;镜像名称&gt; :则会将容器开放的端口随机映射到本机的某些端口上，此时可以使用docker ps查看端口映射关系</p>
+</li>
+</ul>
+</li>
+<li><p>docker exec -it &lt;部分容器ID&gt; bash :返回某个容器的终端,进入容器的内部</p>
+</li>
+<li><ul>
+<li>这里用部分容器ID只要能达到能唯一确认一个容器就行，不用输全</li>
+</ul>
+</li>
+</ul>
+<p><img src="/2018/05/12/【慕课笔记】第一个docker化的java应用/sixtar\source\_posts\【慕课笔记】第一个docker化的java应用\clipboard.png" alt="img"></p>
+<ul>
+<li>docker stop &lt;部分容器ID&gt; :停止容器</li>
+</ul>
+<p>创建自己的镜像</p>
+<p>新建Dockerfile，在其中写基于哪个镜像和一些拷贝命令等等，然后在这个目录下执行：</p>
+<p>docker build -t &lt;镜像名&gt;:&lt;镜像TAG&gt; &lt;dockerfile所在目录&gt;</p>
+<p>例如： docker build -t complat:latest .   :注意，因为是当前目录，所以使用了”.“</p>
+<p>删除镜像</p>
+<p>需要先docker -ps -a查看有哪些容器使用了这个镜像，然后使用：</p>
+<p>docker rm &lt;容器ID&gt; </p>
+<p>删除容器，接着再使用:</p>
+<p>docker rmi &lt;镜像ID&gt; </p>
+<p>删除镜像</p>
+<p>一些问题解决</p>
+<p>安装官方nginx镜像后发现在docker exec -it &lt;容器ID&gt; bash进入bash后一些常用命令，比如ps -ef都不能用：</p>
+<p>bash下执行apt-get update和apt-get install procps</p>
+</div><div class="tags"><a href="/tags/慕课/">慕课</a></div><div class="post-nav"><a class="next" href="/2018/05/06/hello-world/">Hello World</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://sixtar.org"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a> <a href="/tags/慕课/" style="font-size: 15px;">慕课</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2018/05/12/【慕课笔记】第一个docker化的java应用/">【慕课笔记】第一个Docker化的java应用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/05/06/hello-world/">Hello World</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/27/浙大_数据结构_第二讲_线性结构_笔记/">浙大_数据结构_第二讲_线性结构_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/23/浙大_数据结构_第一讲_基本概念_笔记/">浙大_数据结构_第一讲_基本概念_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/03/25/Hexo博客搭建过程备忘/">Hexo博客搭建过程备忘</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://www.v2ex.com/" title="V2EX" target="_blank">V2EX</a><ul></ul><a href="http://www.zhihu.com/" title="全球最大的中文装B社区" target="_blank">全球最大的中文装B社区</a><ul></ul><a href="http://www.baidu.com/" title="程序员灵感的来源" target="_blank">程序员灵感的来源</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2018 <a href="/." rel="nofollow">Sixtar.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
