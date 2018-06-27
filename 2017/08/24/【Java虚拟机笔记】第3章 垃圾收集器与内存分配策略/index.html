@@ -1,0 +1,252 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="a beginner's blog"><title>【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略 | Sixtar</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/normalize/8.0.0/normalize.min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略</h1><a id="logo" href="/.">Sixtar</a><p class="description">不忘初心! Stay hungry,Stay foolish.</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/x/"><i class="fa fa-plane"> x</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略</h1><div class="post-meta">Aug 24, 2017<script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span></div><div class="post-content"><p>3.1 概述</p>
+<p>Java内存中，程序计数器、虚拟机栈、本地方法栈三个区域都是随线程而生而灭，栈中的栈帧随方法的进入退出而执行着入栈出栈操作，每一栈帧分配的内存在编译期类结构确定时就已知了（不考虑运行期JIT的影响），因此这几个区域的内存分配和回收都具有确定性，不需要过多考虑回收问题。</p>
+<p>而Java堆和方法区则不一样，一个接口的多个实现类需要的内存不一样，一个方法中的多个分支需要的内存也不一样。只有在运行期才能知道会创建哪些对象，这部分内存的分配回收都是动态的。垃圾收集器关注的是这部分的内存，本章讨论的也是这部分的内存。</p>
+<p>3.2 对象已死吗（判断对象是否不再被任何途径使用）</p>
+<p>本大节除了3.2.5是讲方法区的回收，其他小节应该都是Java堆里的对象的回收</p>
+<p>3.2.1 引用计数算法</p>
+<p>是很多教科书上教的判断对象是否存活的算法。给对象添加一个引用计数器，有地方引用它计数器加一，引用失效时就减一。计数器为0时就是不再被使用的对象。</p>
+<p>优点：实现简单，判定效率高。</p>
+<p>缺点：很难解决对象间循环引用的问题。所以主流的Java虚拟机都没有选用这种算法。</p>
+<p>3.3.2 可达性分析算法</p>
+<p>是主流语言主流实现普遍采用的算法。基本思路是：通过一系列称为“GC Roots”的起始点向下搜索，搜索走过的路径称为引用链。当一个对象到GC Roots没有任何引用链相连时（数据结构图论的说法：GC Roots到这个对象不可达），则说明此对象是不可用的。</p>
+<p>比如下图，object5、6、7之间互相有关联，但是GC Roots到它们是不可达的，所以它们将会被判断为可回收对象。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image1.png" alt="img"></p>
+<p>在Java语言中，可作为GC Roots的对象如下：</p>
+<ul>
+<li>虚拟机栈中（栈帧中的本地变量表）中引用的对象</li>
+<li>方法区中类静态属性引用的对象</li>
+<li>方法区中常量引用的对象</li>
+<li>本地方法栈中JNI（即一般说的Native方法）引用的对象</li>
+</ul>
+<p>注：本地变量表，也就是第2章的局部变量表，Local的翻译问题</p>
+<p>3.2.3 再谈引用</p>
+<p>以上两种判断方法都涉及到引用。JDK1.2以前，Java中的引用定义很传统：如果reference类型的数据中存储的数值代表的是另外一块内存的起始地址，就称这块内存代表着一个引用。这种定义只有被引用和没被引用两种状态。无法描述“食之无味，弃之可惜”这类中间状态。</p>
+<p>JDK1.2之后引用分为：强引用、软引用、弱引用、虚引用；强度依次减弱。</p>
+<ul>
+<li>强引用就是在程序代码中普遍存在的，类似“Object obj = new Object()”这类的引用；只要强引用还存在，垃圾收集器就永远不会回收掉被引用的对象。</li>
+<li>软引用用来描述有用但并非必须的对象。在系统将要发生内存溢出异常之前会对这些对象进行第二次回收。如果这次回收后还没有足够的内存才会抛出内存溢出异常。对应的类为SoftReference类。</li>
+<li>弱引用用来描述非必需对象。被弱引用关联的对象只能生存到下一次垃圾收集发生之前。对应的类为WeakReference类。</li>
+<li>虚引用也称幽灵引用、幻影引用。是最弱的一种引用关系。一个对象是否有虚引用的存在完全不会对其生存时间构成影响，也无法通过虚引用来取得一个对象实例。为一个对象设置虚引用关联的唯一目的就是能在这个对象被收集器回收时收到一个系统通知。对应的类为PhantomReference类。</li>
+</ul>
+<p>3.2.4 生存还是死亡（不可达、两次标记和finalize()）</p>
+<p>即使在可达性分析算法中不可达的对象也不一定“非死不可”，至少要经过两次标记过程：如果对象在可达性分析后发现没有与GC Roots相连接的引用链，将会被第一次标记并进行一次筛选。筛选的条件是此对象是否有必要执行finalize()方法，对象没有覆盖finalize()方法和finalize()已被虚拟机调用过都属于“没有必要执行”。</p>
+<p>如果对象被判定为有必要执行finalize()方法，那么对象会被放入称为F-Queue的队列，虚拟机稍后会自动建立一个低优先级的Finalizer线程去执行它。注意，这里的“执行”只是会触发这个方法，但不承诺等待它运行结束，主要是避免出现finalize()方法执行缓慢甚至发生死循环的情况导致F-Queue队列堵塞和内存回收系统崩溃。</p>
+<p>finalize()方法是对象逃离死亡的最后一次机会，执行finalize()后GC将对F-Queue中的对象进行第二次小规模的标记，如果不能在这次“即将回收”标记之前不能拯救自己，就会被真的回收。在finalize()中拯救自己的方法是：重新与引用链上的任意对象建立关联，比如把自己（this关键字）赋值给某个类变量或者对象的成员变量。这样做了之后，第二次标记时它将被移出“即将回收”的集合。</p>
+<p>下面是一个对象自我拯救的例子：</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image2.png" alt="img"></p>
+<p>运行结果：</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image3.png" alt="img"></p>
+<p>由运行结果可知，SAVE_HOOK的finalize()方法确实被GC收集器触发过，并且成功逃脱。但是两段完全一样的代码却只有第一次成功逃脱，第二次失败了。这是因为任何一个对象的finalize()都只会被系统自动调用一次，如果对象面临下一次回收，它的</p>
+<p>finalize()方法不会被再次执行，也就无法再次拯救自己。</p>
+<p>当然并不推荐使用finalize()做任何事情，因为它运行代价高昂，不确定性大，无法保证各个对象的调用顺序。甚至不应该使用它做“关闭外部资源”的工作，而应该使用try-finally或者其他更好的方式。</p>
+<p>3.2.5 回收方法区</p>
+<p>虚拟机规范不要求对方法区实现垃圾收集，但是HotSpot对这块区域（称为永久代）是有垃圾收集的，不过相比堆中，尤其是新生代中常规应用一次垃圾收集能回收70%-90%的空间，这里的垃圾收集效率非常低。</p>
+<p>永久代的垃圾收集主要回收两部分内容：废弃常量和无用的类。</p>
+<p>回收废弃常量与Java堆中的对象类似。以常量池中的字面量回收为例：假如常量池中有一个字符串“abc”，但是当前系统没有任何一个String对象叫做“abc”，也就是没有任何String对象引用常量池中的这个字符串常量，也没有其他地方引用这个字面量。如果此时发生内存回收，而且必要的话，这个“abc”常量就会被清理出常量池。常量池中的其他类（接口）、方法、字段的符号引用也与此类似。</p>
+<p>判定一个常量是否是“废弃常量”比较简单，而判断一个类是否是“无用的类”的条件就苛刻许多。类要同时满足以下三个条件才算是“无用的类”：</p>
+<ul>
+<li>该类的所有实例都已经被回收。也就是Java堆中不存在该类的任何实例</li>
+<li>加载该类的ClassLoader已经被回收</li>
+<li>该类对应的java.lang.Class对象没有在任何地方被引用，无法在任何地方通过反射访问该类的方法</li>
+</ul>
+<p>虚拟机“可以”对满足以上条件的无用类进行回收(注意这里是可以而不是像不使用的对象必然被回收)，HotSpot虚拟机提供了-Xnoclassgc参数控制是否对类进行回收。还提供了-verbose:class以及-XX:+TraceClassLoading、-XX:+TraceClassUnloading查看类加载和卸载信息。其中前两者可以在Product版的虚拟机中使用，而第三个参数需要FastDebug版的虚拟机支持。</p>
+<p>方法区类回收使用场景：</p>
+<p>在大量使用反射、动态代理、CGLib等ByteCode（字节码）框架、动态生成JSP以及OSGi这类频繁自定义ClassLoader的场景都需要虚拟机具备类卸载的功能，以保证永久代不会溢出。</p>
+<p>3.3 垃圾收集算法</p>
+<p>垃圾收集算法涉及到大量程序细节而且不同平台的虚拟机操作内存的方法各不相同，所以这节不过多讨论算法实现而是介绍几种算法的思想及其发展过程。</p>
+<p>3.3.1 标记-清除算法</p>
+<p>是最基础的收集算法，因为其他收集算法都基于这种思路并改进其不足。</p>
+<p>分为标记和清除两个阶段：首先标记出所有要回收的对象，标记完之后统一回收被标记的对象。标记过程上一节讲对象标记判定时已经介绍过了。</p>
+<p>不足是：</p>
+<ul>
+<li>标记和清除效率都不高</li>
+<li>空间问题。标记清除后会产生大量不连续的碎片，可能导致后续需要分配较大对象时，无法找到足够连续内存而不得不提前出发另一次垃圾收集动作。</li>
+</ul>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image4.png" alt="img"></p>
+<p>3.3.2 复制算法</p>
+<p>为了解决效率问题。将可用内存划分为大小相等的两块，当这块内存用完了，就将还存活的对象复制到另一块上，把之前那块上已使用的内存一次清理掉。</p>
+<p>优点：每次都对整个半区进行内存回收，不用考虑内存碎片等复杂情况，只要移动堆顶指针按顺序分配内存即可</p>
+<p>缺点：可用内存缩小为原来的一半</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image5.png" alt="img"></p>
+<p>现在商用虚拟机都用这种方法回收新生代，不过不是按照1:1划分空间（因为98%的对象都是朝生夕死），而是将内存分为一块较大的Eden空间和两块Survivor空间。每次使用Eden和其中一块Survivor空间。当回收时，将Eden和Survivor中还存在的对象一次性复制到另一块Survivor上，最后清理Eden和之前使用的那块Survivor空间。HotSpot中默认Eden和Survivor大小比例为8:1。也就是每次新生代可用内存空间为新生代容量的90%，只会浪费10%。当然90%的对象可回收只是一般场景下的数据，如果多余10%的对象存活导致Survivor空间不够用时就需要依赖其他内存（这里指老年代）进行分配担保。</p>
+<p>分配担保就是一块Survivor放不下上次新生代收集下来的存活对象时，这些对象将进入老年代。本章后续讲解垃圾收集器执行规则时还会细讲。</p>
+<p>缺点：</p>
+<p>对象存活率高时需要进行较多的复制操作，效率会变低。</p>
+<p>如果不想浪费一半的空间就需要额外的空间进行分配担保以应对保留空间不够的极端情况。</p>
+<p>3.3.3 标记-整理算法</p>
+<p>基于以上复制算法的缺点，老年代一般不使用复制算法而使用标记-整理算法。</p>
+<p>标记过程与标记-清除算法一样。但后续不是对可回收对象进行整理，而是让所有存活的对象都向一端移动，然后直接清理掉端边界以外的内存。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image6.png" alt="img"></p>
+<p>3.3.4 分代收集算法</p>
+<p>当前商业虚拟机都采用分代收集算法。并没有什么新的思想，而是根据对象存活周期的不同将内存划分为几块。</p>
+<p>一般把Java堆分为新生代和老年代，这样就可以根据各个年代的特点采用最适当的收集算法。新生代中每次垃圾收集都发现有大批对象死去，只有少量存活，那就采用复制算法，只需要付出少量存活对象的复制成本即可；而老年代中对象存活率高，也没有额外空间对它进行分配担保，就必须使用标记-清理或标记-整理算法进行回收。</p>
+<p>3.4 HotSpot的算法实现</p>
+<p>3.2节3.3节介绍了对象存活判定算法和垃圾收集算法，而HotSpot实现这些算法时必须严格考虑执行效率。</p>
+<p>3.4.1 枚举根节点</p>
+<p>以可达性分析要从GC Roots节点找引用链这个操作为例，可做为GC Roots的节点主要在全局性的引用（例如常量或类静态属性）和执行上下文（例如栈帧中的本地变量表）中，现在许多应用仅仅方法区就有数百兆，要逐个检查这里面的引用必然会消耗很多时间。</p>
+<p>可达性分析对执行时间敏感还体现在GC停顿上，因为这项分析工作必须在一个能确保一致性的快照中进行。“一致性”是指整个执行系统像被冻结在某个时间点，分析过程中对象引用关系不允许变化，否则会影响分析的准确性（其实很容易理解）。这点导致GC停止时必须停顿所有Java执行线程的一个重要原因。即使号称几乎不会发生停顿的CMS收集器中，枚举根节点时也必须停顿。</p>
+<p>不过当前主流虚拟机都使用准确式GC，执行系统停顿下来后并不需要挨个检查所有执行上下文和全局的引用位置，虚拟机有方法直接得知哪些地方存放着对象引用。在HotSpot中使用一组称为OopMap的数据结构存放。在类加载完成时，HotSpot就把对象内什么偏移量是什么类型的数据计算出来（存放到OopMap中？）；JIT编译过程中也会在特定的位置记录下栈和寄存器中哪些位置是引用。这样，GC时只扫描这些地方记录的引用就行了</p>
+<p>3.4.2 安全点</p>
+<p>在OopMap的协助下，HotSpot可以快速准确地完成GC Roots枚举，但是还有问题：导致引用关系变化（从而导致OopMap内容变化）的指令非常多，如果每条指令都生成OopMap会导致GC的空间成本太高。所以HotSpot实际只在安全点生成OopMap，也就是程序只在安全点才停顿下来GC。</p>
+<p>安全点的选定标准是“是否具有让程序长时间执行的特征”。“长时间执行”的明显特征是指令序列复用，例如方法调用、循环跳转、异常跳转等等，具有这些功能的指令才会产生安全点。</p>
+<p>对于安全点，还有另外一个问题：如何在GC发生时让所有线程（不包括执行JNI的）都运行到最近的安全点再停顿下来，有两种方案：</p>
+<ul>
+<li>抢先式中断：不需要执行的代码主动配合，在GC发生时，先把所有线程都中断，如果发现有的线程中断的地方不在安全点上，就恢复线程让它跑到安全点上。现在几乎没有虚拟机使用这种方式</li>
+<li>主动式中断：当GC需要中断线程时，不直接对线程操作，仅仅是设置一个标志，各个线程会主动轮询这个标志，发现标记为真时就自己中断挂起。轮询标志的地方和安全点是重合的，另外再加上创建对象需要分配内存的地方。</li>
+</ul>
+<p>3.4.3 安全区域</p>
+<p>安全点解决了程序运行时如何进入GC的问题，但是对于“不运行”时，也就是没有分配CPU时间，比如线程处于Sleep或Blocked状态时，这时候线程无法响应JVM的中断请求以运行到安全点去中断挂起，JVM也不可能等待线程重新被分配CPU时间，这时就需要安全区域。</p>
+<p>安全区域是指在一段代码中，引用关系不会发生变化，此区域内任意地方开始GC都是安全的。可以看作是扩展了的安全点。</p>
+<p>线程执行到安全区域中的代码时会先标识自己已经进入安全区域，JVM发起GC时就不用管标识自己为安全区域状态的线程；当线程要离开安全区域是，需要检查系统是否完成了根节点枚举（或整个GC过程），只有完成了线程才能继续执行，否则必须等待直到收到可以离开安全区域的信号。</p>
+<p>以上几节是HotSpot如何发起内存回收的问题，下面将介绍具体的GC收集器，因为具体的内存回收取决于采用哪种GC收集器。</p>
+<p>3.5 垃圾收集器</p>
+<p>HotSpot（JDK1.7）里的垃圾收集器如下：</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image7.png" alt="img"></p>
+<p>上图展示了7种作用于不同分代的收集器，上半部分是新生代，下半部分是老年代。如果两个收集器之间存在连线说明他们可以搭配使用。</p>
+<p>3.5.1 Serial收集器</p>
+<p>是最基本，历史最悠久的收集器，复制算法，看名字（串行）可知是一个单线程的收集器。这里的单线程除了指它只会使用一个CPU或者收集线程完成垃圾收集外，更是指它进行垃圾收集时必须暂停其他所有工作线程，直到它收集结束。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image8.png" alt="img"></p>
+<p>优点：简单高效。对于限定单CPU的情况下，由于没有线程交互的开销， 可以获得最高的单线程收集效率。</p>
+<p>缺点：造成的用户线程停顿时间较长。</p>
+<p>依然是Client模式下默认新生代的收集器。</p>
+<p>3.5.2 ParNew收集器</p>
+<p>复制算法，其实就是Serial收集器的多线程版本，Serial收集器可用的所有控制参数（-XX:SurvivorRatio、-XX:PretenureThreshold、-XX:HandlePromotionFailure等）、收集算法、Stop The World、对象分配规则、回收策略等都与Serial完全一样。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image9.png" alt="img"></p>
+<p>是Server模式下的首选新生代收集器，一个原因是只有它和Serial能与CMS收集器（负责老年代，真正并发的收集器）配合工作。</p>
+<p>是使用-XX:+UseConcMarkSweepGC选项后的默认新生代收集器，也可以使用-XX:+UseParNewGC来强制指定它。</p>
+<p>使用超线程技术，默认开启的收集线程数与CPU数量相同，也可以使用-XX:ParallelGCThread参数来限制线程数。</p>
+<p>适合CPU非常多的服务器。</p>
+<p>此处额外科普收集器里并发和并行的区别：</p>
+<ul>
+<li>并行（Parallel）：指多条垃圾收集线程并行工作，但此时用户线程仍然处于等待状态</li>
+<li>并发（Concurrent）:指用户线程和收集线程同时执行（不一定是并行的，可能是交替执行），用户程序在继续执行，而垃圾收集器程序运行于另外一个CPU上</li>
+</ul>
+<p>3.5.3 Parallel Scavenge收集器</p>
+<p>是一个新生代收集器，也使用复制算法，又是并行的多线程收集器。但是和CMS等收集器关注点是尽可能缩短垃圾收集时用户线程的停顿时间不同，Parallel Scavenge收集器的关注点是吞吐量，就是CPU用于用户代码的时间与CPU总消耗时间（用户代码时间+垃圾收集时间）的比值。</p>
+<p>（单次）停顿时间越短越适合需要与用户交互的程序，良好的响应速度可以提升用户体验。（但是GC停顿时间的缩短是以牺牲吞吐量和新生代空间换取的，毕竟单次停顿时间短了，但是触发GC更频繁，总的垃圾收集时间就多了，吞吐量自然降下来了）</p>
+<p>而高吞吐量可以高效率地利用CPU时间，尽快完成运算任务，适合在后台运算而不需要太多交互的任务。</p>
+<p>图见3.5.5中图的新生代部分</p>
+<p>Parallel Scavenge收集器提供了两个参数用于精确控制吞吐量：</p>
+<ul>
+<li>-XX:MaxGCPauseMillis: 最大垃圾收集停顿时间，大于0的毫秒数。收集器将尽可能保证内存回收时间不超过这个数，但是不要忘了GC停顿时间是以牺牲吞吐量和新生代空间换取的（为了保证小的停顿时间而调小新生代空间，系统会更频繁触发GC）</li>
+<li>GCTimeRatio: 吞吐量大小，为大于0到小于100的。（书上说的有问题，此处为自己理解），这个数应该是用户时间和GC时间的比值，设为N，则花费在垃圾收集上的时间不能超过1/(N+1)，默认为99,也就是最多允许1%的垃圾收集时间。</li>
+</ul>
+<p>由于与吞吐量关系密切，Parallel Scavenge又被称为吞吐量优先收集器。除了上述两个参数，还有一个参数值得关注：</p>
+<p>-XX:+UseAdaptiveSizePolicy，这是一个开关参数，打开后就不需要手动指定新生代的大小（-Xmn）、Eden与Survivor区的比例（-XX:SurvivorRatio）、晋升老年代对象大小 （-XX:PretenureSizeThreshold）等细节参数，虚拟机会根据系统运行情况收集性能监控信息，动态调节这些参数从而提供合适的停顿时间或者最大的吞吐量。这种调节方式称为：GC自适应调节策略。</p>
+<p>GC自适应调节策略适合对虚拟机运作原理不了解的用户，只要把基本的内存数据设置好（比如-Xmx设置最大堆），然后根据关注最大停顿时间还是吞吐量设置上文介绍的两个参数即可。这也是和ParNew收集的一个重要区别（另外一个区别是关注点不同）。</p>
+<p>3.5.4 Serial Old收集器</p>
+<p>是Serial收集器的老年代版本，也是单线程，使用“标记-整理”算法，主要意义是Client模式下使用。在Server模式下有两大用途（后续小节会讲解）：</p>
+<ul>
+<li>JDK1.5及之前版本中搭配Parallel Scavenge收集器使用</li>
+<li>作为CMS收集器的后备方案，在并发收集发生Concurrent Mode Failure时使用</li>
+</ul>
+<p>图见3.5.1 3.5.2中图的老年代部分</p>
+<p>3.5.5 Parallel Old收集器</p>
+<p>是Parallel Scavenge的老年代版本。使用多线程和“标记-整理”算法。JDK1.6提供的，主要是为了配合新生代的Parallel Scavenge。因为新生代的Parallel Scavenge在这之前只能与老年代的Serial Old搭配，但是受限于Serial Old在服务端的性能（单线程），比较尴尬。</p>
+<p>注重吞吐量的场合可以优先考虑Parallel Scavenge+Parallel Old的组合。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image10.png" alt="img"></p>
+<p>3.5.6 CMS收集器</p>
+<p>全程Concurrent Mark Sweep,从名字可看出并发且采用了“标记-清除”算法。是以获取最短回收停顿时间为目标的收集器。符合重视服务响应速度，希望系统停顿时间最短的场景，比如网站或者B/S系统的服务器上。</p>
+<p>它的运作过程较复杂，分为4个步骤：</p>
+<ul>
+<li>初始标记</li>
+<li>并发标记</li>
+<li>重新标记</li>
+<li>并发清除</li>
+</ul>
+<p>初始标记和重新标记两个步骤仍然需要“Stop The World”,初始标记只是标记一下GC Roots能直接关联到的对象，速度很快。并发标记就是进行GC Roots Tracing的过程。而重新标记则是为了修正并发标记期间由于用户程序继续运行而导致标记产生变动的那一部分对象的标记记录。这个阶段的停顿时间比初始标记稍长，但是远比并发标记的时间短。</p>
+<p>整个过程中最耗时的并发标记和并发清除过程收集器线程都可以与用户线程一起工作，所以总体上CMS收集器的内存回收过程是与用户线程一起并发执行的。下图可以清楚看到并发和需要停顿的时间：</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image11.png" alt="img"></p>
+<p>优点： 并发收集，低停顿。也称并发低停顿收集器。</p>
+<p>缺点：</p>
+<ul>
+<li>对CPU资源非常敏感，特别是CPU数量少于4的时候，因为默认回收线程数(CPU数量+3)/4,少于4个会和用户线程抢资源，多于4个才能有不少于25%（1/4+3/4n）且随CPU数下降的资源占用率</li>
+<li>无法处理浮动垃圾，可能出现Concurrent Mode Failure失败从而导致另一次Full GC的产生。浮动垃圾指并发清理过程中由于用户线程还在运行所产生的垃圾。这部分垃圾出现在标记过程之后，当次收集无法集中处理掉它们，只好留在下一次GC再清理。同样由于垃圾收集阶段用户线程还在运行，CMS收集器不能像其他收集器那样等待老年代几乎被填满后再进行收集，而必须预留一部分给并发收集时还在运行的用户线程使用。JDK1.6中老年代使用了92%就会达到CMS的启动阈值，可以调高-XX:CMSInitiatingOccupancyFraction的值来提高触发的百分比。要是预留的内存无法满足程序需要，就会触发一次Concurrent Mode Failure,这时虚拟机会临时启用Serial Old收集器来重新进行老年代的垃圾收集，这样停顿时间就更长了，所以触发百分比不能设置的太高。</li>
+<li>由于基于“标记-清除”算法实现，会产生空间碎片。容易出现没有足够大的连续空间分配对象从而提前触发一次Full GC。为解决这个问题，提供了一个默认开启的-XX:+UseCMSCompactAtFullCollection开关参数用于在不得以Full GC时开启内存碎片的合并整理过程。还提供了-XX:CMSFullGCsBeforeCompaction来设置触发多少次Full GC后再次触发时附带上面说的合并整理（压缩）过程，默认为0，就是每次进入Full GC都进行碎片整理。</li>
+</ul>
+<p>3.5.7 G1收集器</p>
+<p>最新的，面向服务端的垃圾收集器。目标是取代CMS收集器。</p>
+<p>具有以下特点：</p>
+<ul>
+<li>并行与并发：利用多CPU(或核心)缩短GC停顿时间</li>
+<li>分代收集：和其他收集器一样保留分代概念，但是G1可以独立管理整个GC堆（所以在本节开始的图上跨在线上）</li>
+<li>空间整合：整体上是基于“标记-整理”算法，局部上（两个Region之间）是基于“复制”算法。不会产生空间碎片</li>
+<li>可预测的停顿：相较CMS，能建立可预测的停顿的时间模型（主要得益于Region）</li>
+</ul>
+<p>将整个Java堆划分成多个大小相等的独立区域（Region）,虽然还保留新生代老年代的概念，但在G1中它们都是一部分Region（不需要连续）的集合,不再是物理隔离的了。</p>
+<p>之所以能建立可预测的停顿时间模型，是因为它避免在整个Java堆中进行全区域的垃圾收集。G1会跟踪各个Region里的垃圾堆积的价值大小（回收所获得空间的大小以及回收所需时间的经验值），在后台维护一个优先列表，每次根据允许的收集时间优先回收价值最大的Region(所以名字叫Garbage-First)。</p>
+<p>G1使用Remembered Set来记录Region之间的对象引用以及新生代和老年代之间的对象引用从而避免全堆扫描（不使用这个就需要全堆扫描来避免Region/分代互相引用时造成的遗漏）。每个Region都有一个对应的Remembered Set，虚拟机发现程序对Reference类型的数据进行写操作时会触发一个Write Barrier暂时中断写操作，然后检查Reference引用的对象是否处于不同的Region（分代的例子就是老年代是否引用了新生代中的对象），如果是就会通过CardTable吧相关引用记录到被引用对象所属Region的Remembered Set中，当进行内存回收时，在GC根节点的枚举范围中加入Remembered Set即可保证不需全堆扫描也不会遗漏。</p>
+<p>如果不计算维护Remembered Set的操作，G1收集器的运作可分为以下几个步骤：</p>
+<ul>
+<li>初始标记</li>
+<li>并发标记</li>
+<li>最终标记</li>
+<li>筛选回收</li>
+</ul>
+<p>前几个步骤和CMS有相似之处。</p>
+<p>初始标记仅仅是标记一下GC Roots直接关联的对象，并且修改TAMS的值使下一阶段并发标记时并发运行的用户程序能在正确可用的Region中创建新对象。初始标记需要停顿线程不过很短。</p>
+<p>并发标记是从GC Roots开始对堆中的对象进行可达性分析，耗时较长，但能和用户线程并发执行。</p>
+<p>最终标记阶段是修正并发标记阶段程序继续运行而导致的标记变动记录。并发标记阶段虚拟机会将对象变化记录在线程Remembered Set Logs里，并在最终标记阶段合并到Remembered Set中。这阶段需要停顿线程，但是可以并发执行。</p>
+<p>最后再筛选回收阶段会对各个Region的回收价值和代价进行排序，然后根据用户期望的GC停顿时间来制定回收计划。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image12.png" alt="img"></p>
+<p>3.5.8 理解GC日志</p>
+<p>VM启动参数加上-XX:+PrintGCDetails -XX:+PrintGCTimeStamps才能看到GC日志。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image13.png" alt="img"></p>
+<p>图上1处的时间是GC发生的时间，含义是从虚拟机启动以来经过的秒数</p>
+<p>2处是GC的停顿类型，不是用来区分新生代还是老年代GC的，如果为Full GC就是说明这次GC发生Stop-The-World</p>
+<p>3处是GC发生的区域，不同收集器的命名不同，比如说</p>
+<p>新生代：Serial收集器为DefNew；ParNew收集器为ParNew;Parallel Scavenge收集器为PSYoungGen</p>
+<p>4处是内存变化：“GC前该区域已用内存容量-&gt;GC后该区域已用内存容量（该区域内存总容量）”</p>
+<p>方括号外的5处是：“GC前Java堆已用容量-&gt;GC后Java堆已用容量（Java堆总容量）”</p>
+<p>6处是该内存区域GC所用时间；7处是有的收集器给的更具体的数据，这里的user、sys、real与Linux的time命令所输出的时间含义一致，分别代表用户态消耗CPU时间、内核态消耗的CPU时间和操作从开始到结束所经过的墙钟时间。</p>
+<p>3.5.9 垃圾收集器参数总结（备查）</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image14.png" alt="img"></p>
+<p>3.6 内存分配与回收策略</p>
+<p>对象得内存分配，大方向上就是堆上分配（但也可能经过JIT编译后被拆散为标量类型空间并间接栈上分配），主要分配在新生代的Eden区，如果启动了本地线程分配缓冲（TLAB 第二章P45），将按照线程优先在TLAB上分配。少数情况下也可能直接分配在老年代。分配的具体规则取决于使用的垃圾收集器组合和虚拟机与内存相关的参数的设置。</p>
+<p>接下来会讲几条最普遍的内存分配规则。（书上示例是Client模式默认是Serial/Serial Old组合，我这只有Server模式，是Parallel Scavenge/Parallel Old组合，估计规则有区别）</p>
+<p>3.6.1 对象优先在Eden分配</p>
+<p>大多数情况下，对象在新生代Eden区中分配，当Eden区没有足够空间进行分配时就会触发一次Minor GC。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image15.png" alt="img"></p>
+<p>由上图可知Java堆为20M，新生代占了10M（-Xmn10M），且Eden区与Survivor区比例是8，也就是Eden区占了新生代中的8M，两个Survivor区各占1M。</p>
+<p>分配allocation4时虚拟机会发现新生代的容量不够（只剩2M了），此时就触发一次Minor GC。但是GC时又发现已有的3*2M的对象无法方法另一块Survivor区（只有1M），所以只能通过分配担保机制提前转移到老年代中。GC结束后，4M的allocation4就成功分配在Eden中了。最后执行完结果是Eden占用4M（allocation4），Survivor空闲，老年代占用6MB（allocation1-3）。</p>
+<p>注： Minor GC在书上结果里只是显示为GC。我自己Server模式和书上运行结果有区别，没有打印出GC，最后是新生代的Eden占用7M多，Survivor空闲，而老年代占用4M。但是同样证明了Eden优先。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image16.png" alt="img"></p>
+<p>Minor GC与Full GC的区别（貌似和3.5.8有些区别）：</p>
+<ul>
+<li>新生代GC（Minor GC）:只发生在新生代的垃圾收集动作。因为大部分Java对象都是朝生夕死，所以Minor GC发生非常频繁，一般回收速度也比较快</li>
+<li>老年代GC（Major GC/Full GC）:发生在老年代的GC。出现Major GC时通常会伴随至少一次的Minor GC（不绝对，比如Parallel Scavenge里就有直接进行Major GC的）。Major GC时间一般比Minor GC慢10倍以上</li>
+</ul>
+<p>3.6.2 大对象直接进入老年代</p>
+<p>大对象指需要大量连续内存空间的对象，比如很长的字符串、数组。写程序时应该尽量避免朝生夕死的大对象，因为它会使内存还有不少空间时就提前触发垃圾收集。</p>
+<p>虚拟机提供了-XX:PretenureSizeThreshold参数，大于这个设置的对象将直接在老年代分配，这样就可以避免Eden区和两个Survivor区之间发生大量的内存复制（因为新生代使用复制算法收集）。另外就是这个参数只对Serial和ParNew有效。对Parallel Scavenge无效。还有就是大小只能写成不带单位的字节数，而不能写成2MB这种。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image17.png" alt="img"></p>
+<p>如果收集器是Serial或ParNew的话，运行结果是Eden空间几乎没被使用，而老年代的10M使用40%左右。</p>
+<p>3.6.3 长期存活的对象将进入老年代</p>
+<p>要分代收集就必须知道如何分代。虚拟机给每个对象定义 了 一个年龄计数器，如果对象在Eden出生，经过第一次Minor GC还存活且能被Survivor容纳的话，就会被移动到Survivor空间中（否则提前到老年代了），并且对象年龄设为1，之后每熬过一次Minor GC年龄就加一，直到年龄到达一定岁数（默认15）就会被晋升到老年代中。这个晋升的阈值可以通过-XX:MaxTenuringThreshold设置。</p>
+<p><img src="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/image18.png" alt="img"></p>
+<p>书上改变MaxTenuringThreshold为1或15两次运行结果中from space一次为0（对象进入老年区了），一次为4M左右，我的环境无法重现。</p>
+<p>3.6.4 动态对象年龄判定</p>
+<p>虚拟机并不永远要求对象的年龄必须达到设置的阈值。如果Survivor空间中相同年龄所有对象的大小的总和超过Survivor区的一半，那么大于等于该年龄的对象就可以直接进入老年代，而无需等到达到阈值设置的年龄。</p>
+<p>测试略。</p>
+<p>3.6.5 空间分配担保</p>
+<p>在发生Minor GC之前，虚拟机会先检查老年代最大可用的连续空间是否大于新生代所有对象总空间，如果成立那么Minor GC可以确保是安全的。如果不成立则会查看HandlePromotionFailure设置值是否允许担保失败，如果不允许直接改为进行一次Full GC。如果允许担保失败则会继续检查老年代最大可用的连续空间是否大于历次晋升到老年代的平均大小，如果大于则进行一次Minor GC(尽管这次Minor GC是有风险的)；如果小于则和不允许担保失败一样改为进行一次Full GC。</p>
+<p>所谓的风险是指Minor GC后如果新生代存活对象另一个Survivor无法容纳时需要使用老年代做担保，但是并不清楚老年代的剩余连续空间是否能应对极端情况（大部分对象存活）的担保。所以取每次晋升到老年代的对象容量的平均值作为经验值与老年代剩余空间进行比较，决定是否进行Full GC来让老年代提前腾出更多空间（应对可能的较大容量担保情况）。</p>
+<p>取平均值依然是动态概率，如果某次Minor GC后存好对象远高于平均值则老年代的空间不够用，就会担保失败。此时只好在失败后重新发起一次Full GC。其实就是参照经验值去碰运气，所以一般还是会设置为允许担保失败。</p>
+<p>实验代码要求JDK6故略。</p>
+<p>3.7 本章小结</p>
+<p>主要内容：</p>
+<p>垃圾收集算法</p>
+<p>JDK提供的几款垃圾收集器的特点及运作原理</p>
+<p>虚拟机中自动内存分配及回收的主要原则。</p>
+<p>第4,5章分别介绍内存分析工具和（内存回收和垃圾收集器）调优的具体案例。第一遍先跳过。</p>
+</div><div class="tags"><a href="/tags/虚拟机/">虚拟机</a></div><div class="post-nav"><a class="pre" href="/2017/09/07/【Java虚拟机笔记】第6章 类文件结构/">【Java虚拟机笔记】第6章 类文件结构</a><a class="next" href="/2017/08/10/【Java虚拟机笔记】第2章 Java内存区域与内存溢出异常/">【Java虚拟机笔记】第2章 Java内存区域与内存溢出异常</a></div><div id="container"></div><link rel="stylesheet" type="text/css" href="//unpkg.com/gitalk/dist/gitalk.css?v=0.0.0"><script type="text/javascript" src="//unpkg.com/gitalk/dist/gitalk.min.js?v=0.0.0"></script><script>var gitalk = new Gitalk({
+  clientID: 'c1a5c3e9da362701eef8',
+  clientSecret: '9151237934be60c72d23fcd7efb5ee2798bf2b5a',
+  repo: 'comment',
+  owner: 'sixtar',
+  admin: ['sixtar'],
+  id: decodeURI(location.pathname),
+  distractionFreeMode: false
+})
+gitalk.render('container')
+</script></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="http://sixtar.org"/></form></div><div class="widget"><form class="search-form" action="//www.baidu.com/baidu" method="get" accept-charset="utf-8" target="_blank"><input type="search" name="word" maxlength="20" placeholder="Search"/><input type="hidden" name="si" value="http://sixtar.org"/><input name="tn" type="hidden" value="bds"/><input name="cl" type="hidden" value="3"/><input name="ct" type="hidden" value="2097152"/><input name="s" type="hidden" value="on"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/虚拟机/" style="font-size: 15px;">虚拟机</a> <a href="/tags/慕课/" style="font-size: 15px;">慕课</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2018/05/12/【慕课笔记】Spring-Data-Jpa基本使用/">【慕课笔记】Spring Data Jpa基本使用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/05/01/【慕课笔记】第一个docker化的java应用/">【慕课笔记】第一个Docker化的java应用</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/27/浙大_数据结构_第二讲_线性结构_笔记/">浙大_数据结构_第二讲_线性结构_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/23/浙大_数据结构_第一讲_基本概念_笔记/">浙大_数据结构_第一讲_基本概念_笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/07/【Java虚拟机笔记】第6章 类文件结构/">【Java虚拟机笔记】第6章 类文件结构</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/08/24/【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略/">【Java虚拟机笔记】第3章 垃圾收集器与内存分配策略</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/08/10/【Java虚拟机笔记】第2章 Java内存区域与内存溢出异常/">【Java虚拟机笔记】第2章 Java内存区域与内存溢出异常</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/03/25/Hexo博客搭建过程备忘/">Hexo博客搭建过程备忘</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://www.v2ex.com/" title="V2EX" target="_blank">V2EX</a><ul></ul><a href="http://www.zhihu.com/" title="全球最大的中文装B社区" target="_blank">全球最大的中文装B社区</a><ul></ul><a href="http://www.baidu.com/" title="程序员灵感的来源" target="_blank">程序员灵感的来源</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2018 <a href="/." rel="nofollow">Sixtar.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//cdn.bootcss.com/fancybox/3.3.5/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
